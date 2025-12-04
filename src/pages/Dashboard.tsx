@@ -21,7 +21,7 @@ interface Report {
   id: number;
   type: string;
   description: string;
-  severity: number | string; // can be numeric or string
+  severity: number | string;
   city: string;
   area: string;
   landmark: string;
@@ -62,14 +62,37 @@ export default function Dashboard() {
         // Pie chart data (severity distribution)
         const severityCounts: Record<string, number> = {};
         data.forEach((r) => {
-          const sev = typeof r.severity === "number" ? r.severity.toString() : r.severity.toLowerCase();
+          const sev =
+            typeof r.severity === "number"
+              ? r.severity.toString()
+              : r.severity.toLowerCase();
           severityCounts[sev] = (severityCounts[sev] || 0) + 1;
         });
         const severityArray = [
-          { label: "Low", count: severityCounts["1"] || severityCounts["low"] || 0, color: "#4caf50" },
-          { label: "Moderate", count: severityCounts["2"] || severityCounts["moderate"] || severityCounts["medium"] || 0, color: "#ffeb3b" },
-          { label: "High", count: severityCounts["3"] || severityCounts["high"] || 0, color: "#fb8c00" },
-          { label: "Critical", count: severityCounts["4"] || severityCounts["critical"] || 0, color: "#e53935" },
+          {
+            label: "Low",
+            count: severityCounts["1"] || severityCounts["low"] || 0,
+            color: "#4caf50",
+          },
+          {
+            label: "Moderate",
+            count:
+              severityCounts["2"] ||
+              severityCounts["moderate"] ||
+              severityCounts["medium"] ||
+              0,
+            color: "#ffeb3b",
+          },
+          {
+            label: "High",
+            count: severityCounts["3"] || severityCounts["high"] || 0,
+            color: "#fb8c00",
+          },
+          {
+            label: "Critical",
+            count: severityCounts["4"] || severityCounts["critical"] || 0,
+            color: "#e53935",
+          },
         ];
         setSeverityData(severityArray);
       } catch (err) {
@@ -86,11 +109,16 @@ export default function Dashboard() {
   const severityClass = (sev: number | string) => {
     if (typeof sev === "number") {
       switch (sev) {
-        case 1: return "severity-card-low";
-        case 2: return "severity-card-moderate";
-        case 3: return "severity-card-high";
-        case 4: return "severity-card-critical";
-        default: return "";
+        case 1:
+          return "severity-card-low";
+        case 2:
+          return "severity-card-moderate";
+        case 3:
+          return "severity-card-high";
+        case 4:
+          return "severity-card-critical";
+        default:
+          return "";
       }
     }
     const s = String(sev).toLowerCase();
@@ -107,61 +135,66 @@ export default function Dashboard() {
         {/* Bar Chart */}
         <div className="chart-section">
           <h3>Incident Distribution by Type</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="type" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count">
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} className={`bar-color-${entry.type}`} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-
-          {/* Legend for bar chart */}
-          <div className="legend">
-            <span className="legend-item hazard">Hazard</span>
-            <span className="legend-item theft">Theft</span>
-            <span className="legend-item unsafe_area">Unsafe Area</span>
-            <span className="legend-item emergency">Emergency</span>
-            <span className="legend-item harassment">Harassment</span>
-            <span className="legend-item other">Other</span>
-          </div>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="type" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count">
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={
+                        entry.type.toLowerCase() === "hazard"
+                          ? "orange"
+                          : entry.type.toLowerCase() === "theft"
+                          ? "red"
+                          : entry.type.toLowerCase() === "unsafe area"
+                          ? "purple"
+                          : entry.type.toLowerCase() === "emergency"
+                          ? "blue"
+                          : entry.type.toLowerCase() === "harassment"
+                          ? "pink"
+                          : "cyan"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p>No incident data available</p>
+          )}
         </div>
 
         {/* Pie Chart */}
         <div className="chart-section">
           <h3>Severity Distribution</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={severityData}
-                dataKey="count"
-                nameKey="label"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label
-                isAnimationActive={true}
-              >
-                {severityData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} className={`pie-color-${entry.label.toLowerCase()}`} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-
-          {/* Legend for pie chart */}
-          <div className="legend">
-            <span className="legend-item low">Low</span>
-            <span className="legend-item moderate">Moderate</span>
-            <span className="legend-item high">High</span>
-            <span className="legend-item critical">Critical</span>
-          </div>
+          {severityData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={severityData}
+                  dataKey="count"
+                  nameKey="label"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  label
+                  isAnimationActive={true}
+                >
+                  {severityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p>No severity data available</p>
+          )}
         </div>
 
         {/* Filter dropdown */}
@@ -174,7 +207,9 @@ export default function Dashboard() {
           >
             <option value="All">All</option>
             {types.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
         </div>
@@ -184,12 +219,18 @@ export default function Dashboard() {
           {filteredReports.map((r) => (
             <div key={r.id} className={`report-card ${severityClass(r.severity)}`}>
               <div className="severity-badge">
-                Severity {String(r.severity).charAt(0).toUpperCase() + String(r.severity).slice(1)}
+                Severity{" "}
+                {String(r.severity).charAt(0).toUpperCase() +
+                  String(r.severity).slice(1)}
               </div>
               <h3>{r.type}</h3>
               <p>{r.description}</p>
-              <p><strong>Location:</strong> {r.area}, {r.city}</p>
-              <p><strong>Landmark:</strong> {r.landmark}</p>
+              <p>
+                <strong>Location:</strong> {r.area}, {r.city}
+              </p>
+              <p>
+                <strong>Landmark:</strong> {r.landmark}
+              </p>
             </div>
           ))}
           {filteredReports.length === 0 && (
