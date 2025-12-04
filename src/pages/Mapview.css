@@ -1,0 +1,17 @@
+.map-page {
+  padding: 40px;
+}
+
+.map-wrapper {
+  max-width: 1000px;
+  margin: 16px auto;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.map-container {
+  height: 500px; /* Critical: Leaflet requires an explicit height */
+  width: 100%;
+}

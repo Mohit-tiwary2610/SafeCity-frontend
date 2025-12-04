@@ -1,0 +1,86 @@
+/* Navbar container */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #6a1b9a; /* purple */
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Logo / brand */
+.navbar .logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #ffffff !important; /* force white */
+  text-decoration: none;
+}
+
+/* Links container */
+.navbar .navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Default nav links (Home, Report, Map, Dashboard) */
+.navbar .navbar-links .nav-link {
+  color: #ffffff !important;       /* force visible on purple */
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: color 0.2s ease;
+}
+
+.navbar .navbar-links .nav-link:hover {
+  color: #ffeb3b !important;       /* yellow on hover */
+}
+
+/* Login / Signup styled as buttons */
+.navbar .auth-links {
+  display: flex;
+  gap: 12px;
+  margin-left: 8px;
+}
+
+.navbar .auth-links .auth-link {
+  padding: 6px 14px;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #6a1b9a !important;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.0);
+}
+
+.navbar .auth-links .auth-link:hover {
+  background-color: #ffeb3b;
+  color: #6a1b9a !important;
+  border-color: #ffeb3b;
+}
+
+/* Ensure global anchor rules can't override navbar */
+.navbar a {
+  color: inherit;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .navbar .navbar-links {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .navbar .auth-links {
+    margin-top: 8px;
+  }
+}

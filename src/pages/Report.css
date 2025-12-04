@@ -1,0 +1,81 @@
+.report-container {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.report-title {
+  color: #4A148C;
+  margin-bottom: 16px;
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.report-table thead {
+  background-color: #6A1B9A;
+  color: white;
+}
+
+.report-table th,
+.report-table td {
+  padding: 12px;
+  text-align: left;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background-color: #F3E5F5;
+}
+
+.report-table tbody tr:nth-child(odd) {
+  background-color: #EDE7F6;
+}
+
+.report-type {
+  font-weight: bold;
+  color: #4A148C;
+}
+
+.report-severity.low {
+  color: #2E7D32; /* green */
+  font-weight: bold;
+}
+
+.report-severity.medium {
+  color: #EF6C00; /* orange */
+  font-weight: bold;
+}
+
+.report-severity.high {
+  color: #C62828; /* red */
+  font-weight: bold;
+}
+
+.report-status.verified {
+  color: #2E7D32; /* green */
+  font-weight: bold;
+}
+
+.report-status.pending {
+  color: #1565C0; /* blue */
+  font-weight: bold;
+}
+
+.error {
+  color: #C62828;
+  font-weight: bold;
+  padding: 12px;
+}
+
+.loading {
+  color: #6A1B9A;
+  font-style: italic;
+  padding: 12px;
+}
