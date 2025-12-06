@@ -36,39 +36,48 @@ export default function ReportForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const body = {
-        type,
-        description,
-        severity,
-        f_lat: parseFloat(f_lat),
-        f_lng: parseFloat(f_lng),
-        city,
-        area,
-        landmark,
-      };
+  e.preventDefault();
+  try {
+    const body = {
+      type,
+      description,
+      severity, // make sure this matches backend expectation
+      lat: parseFloat(f_lat),   // ✅ use lat
+      lng: parseFloat(f_lng),   // ✅ use lng
+      city,
+      area,
+      landmark,
+    };
 
-      const res = await fetch(`${API}/reports`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+    const res = await fetch(`${API}/incidents`, {   // ✅ correct endpoint
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
-      if (!res.ok) throw new Error("Failed to submit report");
-
-      const json = await res.json();
-      console.log("Submitted:", json);
-
-      setMessage({ text: "✅ Report submitted successfully!", type: "success" });
-
-      // reset form
-      setType(""); setDescription(""); setSeverity(1);
-      setLat(""); setLng(""); setCity(""); setArea(""); setLandmark("");
-    } catch (err) {
-      setMessage({ text: "❌ Error submitting report. Please try again.", type: "error" });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Failed to submit report");
     }
-  };
+
+    const json = await res.json();
+    console.log("Submitted:", json);
+
+    setMessage({ text: "✅ Report submitted successfully!", type: "success" });
+
+    // reset form
+    setType("");
+    setDescription("");
+    setSeverity(1);
+    setLat("");
+    setLng("");
+    setCity("");
+    setArea("");
+    setLandmark("");
+  } catch (err: any) {
+    setMessage({ text: `❌ ${err.message}`, type: "error" });
+  }
+};
 
   return (
     <>
