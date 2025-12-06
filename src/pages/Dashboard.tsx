@@ -18,20 +18,26 @@ import "./Dashboard.css";
 const API = import.meta.env.VITE_API_URL;
 
 interface Report {
-  id: number;
+  _id: string;
   type: string;
   description: string;
-  severity: number | string;
-  city: string;
-  area: string;
-  landmark: string;
+  severity: string | number;
+  lat: number;
+  lng: number;
+  consent_public_map: boolean;
+  media_urls: string[];
+  city?: string;
+  area?: string;
+  landmark?: string;
 }
 
 export default function Dashboard() {
   const [reports, setReports] = useState<Report[]>([]);
   const [filterType, setFilterType] = useState<string>("All");
   const [types, setTypes] = useState<string[]>([]);
-  const [chartData, setChartData] = useState<{ type: string; count: number }[]>([]);
+  const [chartData, setChartData] = useState<{ type: string; count: number }[]>(
+    []
+  );
   const [severityData, setSeverityData] = useState<
     { label: string; count: number; color: string }[]
   >([]);
@@ -39,12 +45,15 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const res = await fetch(`${API}/reports`);
-        const data: Report[] = await res.json();
-        setReports(data);
+        const res = await fetch(`${API}/incidents`);
+        const data = await res.json();
+
+        // backend returns { ok: true, incidents: [...] }
+        const incidentList: Report[] = data.incidents || [];
+        setReports(incidentList);
 
         // Unique types for dropdown
-        const mappedTypes = data.map((r) => r.type);
+        const mappedTypes = incidentList.map((r) => r.type);
         const uniqueTypes = Array.from(new Set(mappedTypes));
         setTypes(uniqueTypes);
 
@@ -61,7 +70,7 @@ export default function Dashboard() {
 
         // Pie chart data (severity distribution)
         const severityCounts: Record<string, number> = {};
-        data.forEach((r) => {
+        incidentList.forEach((r) => {
           const sev =
             typeof r.severity === "number"
               ? r.severity.toString()
@@ -96,14 +105,16 @@ export default function Dashboard() {
         ];
         setSeverityData(severityArray);
       } catch (err) {
-        console.error("Error fetching reports:", err);
+        console.error("Error fetching incidents:", err);
       }
     };
     fetchReports();
   }, []);
 
   const filteredReports =
-    filterType === "All" ? reports : reports.filter((r) => r.type === filterType);
+    filterType === "All"
+      ? reports
+      : reports.filter((r) => r.type === filterType);
 
   // Normalize severity to CSS class suffix
   const severityClass = (sev: number | string) => {
@@ -217,7 +228,7 @@ export default function Dashboard() {
         {/* Report cards */}
         <div className="report-grid">
           {filteredReports.map((r) => (
-            <div key={r.id} className={`report-card ${severityClass(r.severity)}`}>
+            <div key={r._id} className={`report-card ${severityClass(r.severity)}`}>
               <div className="severity-badge">
                 Severity{" "}
                 {String(r.severity).charAt(0).toUpperCase() +
@@ -226,10 +237,11 @@ export default function Dashboard() {
               <h3>{r.type}</h3>
               <p>{r.description}</p>
               <p>
-                <strong>Location:</strong> {r.area}, {r.city}
+                <strong>Location:</strong> {r.area || "Unknown"},{" "}
+                {r.city || "Unknown"}
               </p>
               <p>
-                <strong>Landmark:</strong> {r.landmark}
+                <strong>Landmark:</strong> {r.landmark || "None"}
               </p>
             </div>
           ))}
