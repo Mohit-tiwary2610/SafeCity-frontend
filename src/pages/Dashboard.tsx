@@ -44,77 +44,107 @@ export default function Dashboard() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
+  // Process incident data into UI state
+  const processData = (incidentList: Report[]) => {
+    setReports(incidentList);
+
+    // Unique types for dropdown
+    const mappedTypes = incidentList.map((r) => r.type);
+    const uniqueTypes = Array.from(new Set(mappedTypes));
+    setTypes(uniqueTypes);
+
+    // Bar chart data
+    const typeCounts: Record<string, number> = {};
+    mappedTypes.forEach((t) => {
+      typeCounts[t] = (typeCounts[t] || 0) + 1;
+    });
+    const chartArray = Object.entries(typeCounts).map(([type, count]) => ({
+      type,
+      count,
+    }));
+    setChartData(chartArray);
+
+    // Pie chart data (severity distribution)
+    const severityCounts: Record<string, number> = {};
+    incidentList.forEach((r) => {
+      const sev =
+        typeof r.severity === "number"
+          ? r.severity.toString()
+          : r.severity.toLowerCase();
+      severityCounts[sev] = (severityCounts[sev] || 0) + 1;
+    });
+    const severityArray = [
+      {
+        label: "Low",
+        count: severityCounts["1"] || severityCounts["low"] || 0,
+        color: "#4caf50",
+      },
+      {
+        label: "Moderate",
+        count:
+          severityCounts["2"] ||
+          severityCounts["moderate"] ||
+          severityCounts["medium"] ||
+          0,
+        color: "#ffeb3b",
+      },
+      {
+        label: "High",
+        count: severityCounts["3"] || severityCounts["high"] || 0,
+        color: "#fb8c00",
+      },
+      {
+        label: "Critical",
+        count: severityCounts["4"] || severityCounts["critical"] || 0,
+        color: "#e53935",
+      },
+    ];
+    setSeverityData(severityArray);
+  };
+
   useEffect(() => {
-    const fetchReports = async () => {
+    const fetchOnce = async (): Promise<Report[] | null> => {
       try {
-        const res = await fetch(`${API}/incidents`);
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const url = `${API}/incidents`;
+        console.log("Fetching:", url);
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const incidentList: Report[] = Array.isArray(data.incidents)
           ? data.incidents
           : [];
-        console.log("Fetched incidents:", incidentList);
-        setReports(incidentList);
-
-        // Unique types for dropdown
-        const mappedTypes = incidentList.map((r) => r.type);
-        const uniqueTypes = Array.from(new Set(mappedTypes));
-        setTypes(uniqueTypes);
-
-        // Bar chart data
-        const typeCounts: Record<string, number> = {};
-        mappedTypes.forEach((t) => {
-          typeCounts[t] = (typeCounts[t] || 0) + 1;
-        });
-        const chartArray = Object.entries(typeCounts).map(([type, count]) => ({
-          type,
-          count,
-        }));
-        setChartData(chartArray);
-
-        // Pie chart data (severity distribution)
-        const severityCounts: Record<string, number> = {};
-        incidentList.forEach((r) => {
-          const sev =
-            typeof r.severity === "number"
-              ? r.severity.toString()
-              : r.severity.toLowerCase();
-          severityCounts[sev] = (severityCounts[sev] || 0) + 1;
-        });
-        const severityArray = [
-          {
-            label: "Low",
-            count: severityCounts["1"] || severityCounts["low"] || 0,
-            color: "#4caf50",
-          },
-          {
-            label: "Moderate",
-            count:
-              severityCounts["2"] ||
-              severityCounts["moderate"] ||
-              severityCounts["medium"] ||
-              0,
-            color: "#ffeb3b",
-          },
-          {
-            label: "High",
-            count: severityCounts["3"] || severityCounts["high"] || 0,
-            color: "#fb8c00",
-          },
-          {
-            label: "Critical",
-            count: severityCounts["4"] || severityCounts["critical"] || 0,
-            color: "#e53935",
-          },
-        ];
-        setSeverityData(severityArray);
-      } catch (err: any) {
-        console.error("Error fetching incidents:", err);
-        setError("Failed to load incident data. Please try again later.");
-      } finally {
-        setLoading(false);
+        return incidentList;
+      } catch (e) {
+        console.warn("Fetch failed:", e);
+        return null;
       }
     };
+
+    const fetchReports = async () => {
+      setLoading(true);
+      setError("");
+
+      // First attempt
+      const first = await fetchOnce();
+      if (first && first.length >= 0) {
+        processData(first);
+        setLoading(false);
+        return;
+      }
+
+      // Retry once (Render cold start)
+      console.log("Retrying fetch...");
+      const second = await fetchOnce();
+      if (second && second.length >= 0) {
+        processData(second);
+        setLoading(false);
+        return;
+      }
+
+      setError("Failed to load incident data. Please try again later.");
+      setLoading(false);
+    };
+
     fetchReports();
   }, []);
 
