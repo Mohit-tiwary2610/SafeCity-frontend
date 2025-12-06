@@ -17,6 +17,19 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "./Dashboard.css";
 
+// Leaflet marker icon fix for production (Vercel)
+import L from "leaflet";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
 const API = import.meta.env.VITE_API_URL;
 
 interface Report {
@@ -49,27 +62,19 @@ export default function Dashboard() {
   const [page, setPage] = useState<number>(1);
   const pageSize = 6;
 
-  // Process incident data into UI state
   const processData = (incidentList: Report[]) => {
     setReports(incidentList);
 
-    // Unique types for dropdown (filter out undefined)
     const mappedTypes = incidentList.map((r) => r.type).filter(Boolean);
     const uniqueTypes = Array.from(new Set(mappedTypes));
     setTypes(uniqueTypes);
 
-    // Bar chart data
     const typeCounts: Record<string, number> = {};
     mappedTypes.forEach((t) => {
       typeCounts[t] = (typeCounts[t] || 0) + 1;
     });
-    const chartArray = Object.entries(typeCounts).map(([type, count]) => ({
-      type,
-      count,
-    }));
-    setChartData(chartArray);
+    setChartData(Object.entries(typeCounts).map(([type, count]) => ({ type, count })));
 
-    // Pie chart data (severity distribution)
     const severityCounts: Record<string, number> = {};
     incidentList.forEach((r) => {
       const sev =
@@ -78,78 +83,33 @@ export default function Dashboard() {
           : r.severity.toLowerCase();
       severityCounts[sev] = (severityCounts[sev] || 0) + 1;
     });
-    const severityArray = [
-      {
-        label: "Low",
-        count: severityCounts["1"] || severityCounts["low"] || 0,
-        color: "#4caf50",
-      },
-      {
-        label: "Moderate",
-        count:
-          severityCounts["2"] ||
-          severityCounts["moderate"] ||
-          severityCounts["medium"] ||
-          0,
-        color: "#ffeb3b",
-      },
-      {
-        label: "High",
-        count: severityCounts["3"] || severityCounts["high"] || 0,
-        color: "#fb8c00",
-      },
-      {
-        label: "Critical",
-        count: severityCounts["4"] || severityCounts["critical"] || 0,
-        color: "#e53935",
-      },
-    ];
-    setSeverityData(severityArray);
+    setSeverityData([
+      { label: "Low", count: severityCounts["1"] || severityCounts["low"] || 0, color: "#4caf50" },
+      { label: "Moderate", count: severityCounts["2"] || severityCounts["moderate"] || severityCounts["medium"] || 0, color: "#ffeb3b" },
+      { label: "High", count: severityCounts["3"] || severityCounts["high"] || 0, color: "#fb8c00" },
+      { label: "Critical", count: severityCounts["4"] || severityCounts["critical"] || 0, color: "#e53935" },
+    ]);
 
     setLastUpdated(new Date().toLocaleString());
   };
 
   useEffect(() => {
-    const fetchOnce = async (): Promise<Report[] | null> => {
-      try {
-        const url = `${API}/incidents`;
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const incidentList: Report[] = Array.isArray(data.incidents)
-          ? data.incidents
-          : [];
-        return incidentList;
-      } catch (e) {
-        console.warn("Fetch failed:", e);
-        return null;
-      }
-    };
-
     const fetchReports = async () => {
       setLoading(true);
       setError("");
-
-      // First attempt
-      const first = await fetchOnce();
-      if (first) {
-        processData(first);
+      try {
+        const res = await fetch(`${API}/incidents`);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        const incidentList: Report[] = Array.isArray(data.incidents) ? data.incidents : [];
+        processData(incidentList);
+      } catch (err) {
+        console.error("Error fetching incidents:", err);
+        setError("Failed to load incident data. Please try again later.");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      // Retry once (Render cold start)
-      const second = await fetchOnce();
-      if (second) {
-        processData(second);
-        setLoading(false);
-        return;
-      }
-
-      setError("Failed to load incident data. Please try again later.");
-      setLoading(false);
     };
-
     fetchReports();
   }, []);
 
@@ -158,24 +118,16 @@ export default function Dashboard() {
       ? reports
       : reports.filter((r) => r.type === filterType);
 
-  const paginatedReports = filteredReports.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
+  const paginatedReports = filteredReports.slice((page - 1) * pageSize, page * pageSize);
 
   const severityClass = (sev: number | string) => {
     if (typeof sev === "number") {
       switch (sev) {
-        case 1:
-          return "severity-card-low";
-        case 2:
-          return "severity-card-moderate";
-        case 3:
-          return "severity-card-high";
-        case 4:
-          return "severity-card-critical";
-        default:
-          return "";
+        case 1: return "severity-card-low";
+        case 2: return "severity-card-moderate";
+        case 3: return "severity-card-high";
+        case 4: return "severity-card-critical";
+        default: return "";
       }
     }
     const s = String(sev).toLowerCase();
@@ -183,46 +135,22 @@ export default function Dashboard() {
     return `severity-card-${s}`;
   };
 
-  // Native CSV export without external libs
   const toCSV = (rows: Report[]): string => {
-    const headers = [
-      "_id",
-      "type",
-      "description",
-      "severity",
-      "lat",
-      "lng",
-      "consent_public_map",
-      "city",
-      "area",
-      "landmark",
-    ];
+    const headers = ["_id","type","description","severity","lat","lng","consent_public_map","city","area","landmark"];
     const escape = (val: unknown) => {
       if (val === null || val === undefined) return "";
       const s = String(val);
-      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      if (/[\",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
       return s;
     };
-    const lines = [
+    return [
       headers.join(","),
       ...rows.map((r) =>
-        [
-          r._id,
-          r.type,
-          r.description,
-          r.severity,
-          r.lat,
-          r.lng,
-          r.consent_public_map,
-          r.city ?? "",
-          r.area ?? "",
-          r.landmark ?? "",
-        ]
+        [r._id,r.type,r.description,r.severity,r.lat,r.lng,r.consent_public_map,r.city ?? "",r.area ?? "",r.landmark ?? ""]
           .map(escape)
           .join(",")
       ),
-    ];
-    return lines.join("\n");
+    ].join("\n");
   };
 
   const exportCSV = () => {
@@ -246,13 +174,10 @@ export default function Dashboard() {
       <div className="dashboard-page">
         <h2>📊 Incident Dashboard</h2>
 
-        {lastUpdated && (
-          <p className="last-updated">Last updated: {lastUpdated}</p>
-        )}
+        {lastUpdated && <p className="last-updated">Last updated: {lastUpdated}</p>}
+
         <div className="actions-row">
-          <button onClick={exportCSV} className="export-btn">
-            Export to CSV
-          </button>
+          <button onClick={exportCSV} className="export-btn">Export to CSV</button>
         </div>
 
         {loading ? (
@@ -261,9 +186,7 @@ export default function Dashboard() {
             <p>Loading incident data...</p>
           </div>
         ) : error ? (
-          <div className="error-state">
-            <h4>{error}</h4>
-          </div>
+          <div className="error-state"><h4>{error}</h4></div>
         ) : (
           <>
             {/* Bar Chart */}
@@ -281,17 +204,11 @@ export default function Dashboard() {
                         <Cell
                           key={`cell-${index}`}
                           fill={
-                            entry.type.toLowerCase() === "hazard"
-                              ? "orange"
-                              : entry.type.toLowerCase() === "theft"
-                              ? "red"
-                              : entry.type.toLowerCase() === "unsafe_area"
-                              ? "purple"
-                              : entry.type.toLowerCase() === "emergency"
-                              ? "blue"
-                              : entry.type.toLowerCase() === "harassment"
-                              ? "pink"
-                              : "cyan"
+                            entry.type.toLowerCase() === "hazard" ? "orange" :
+                            entry.type.toLowerCase() === "theft" ? "red" :
+                            entry.type.toLowerCase() === "unsafe_area" ? "purple" :
+                            entry.type.toLowerCase() === "emergency" ? "blue" :
+                            entry.type.toLowerCase() === "harassment" ? "pink" : "cyan"
                           }
                         />
                       ))}
@@ -317,7 +234,6 @@ export default function Dashboard() {
                       cy="50%"
                       outerRadius={100}
                       label
-                      isAnimationActive={true}
                     >
                       {severityData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -331,7 +247,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Map Markers */}
+            {/* Map */}
             <div className="chart-section">
               <h3>Incident Map</h3>
               <MapContainer
@@ -341,12 +257,11 @@ export default function Dashboard() {
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 {reports
-                  .filter((r) => r.consent_public_map && r.lat && r.lng)
+                  .filter((r) => r.consent_public_map && Number.isFinite(r.lat) && Number.isFinite(r.lng))
                   .map((r) => (
                     <Marker key={r._id} position={[r.lat, r.lng]}>
                       <Popup>
-                        <strong>{r.type}</strong>
-                        <br />
+                        <strong>{r.type}</strong><br />
                         {r.description}
                       </Popup>
                     </Marker>
@@ -354,7 +269,7 @@ export default function Dashboard() {
               </MapContainer>
             </div>
 
-            {/* Filter dropdown */}
+            {/* Filter */}
             <div className="filter-bar">
               <label htmlFor="type">Filter by type:</label>
               <select
@@ -362,35 +277,27 @@ export default function Dashboard() {
                 value={filterType}
                 onChange={(e) => {
                   setFilterType(e.target.value);
-                  setPage(1); // reset to first page when changing filters
+                  setPage(1);
                 }}
               >
                 <option value="All">All</option>
                 {types.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
 
-            {/* Report cards */}
+            {/* Cards */}
             <div className="report-grid">
               {paginatedReports.map((r) => (
-                <div
-                  key={r._id}
-                  className={`report-card ${severityClass(r.severity)}`}
-                >
+                <div key={r._id} className={`report-card ${severityClass(r.severity)}`}>
                   <div className="severity-badge">
-                    Severity{" "}
-                    {String(r.severity).charAt(0).toUpperCase() +
-                      String(r.severity).slice(1)}
+                    Severity {String(r.severity).charAt(0).toUpperCase() + String(r.severity).slice(1)}
                   </div>
                   <h3>{r.type}</h3>
                   <p>{r.description}</p>
                   <p>
-                    <strong>Location:</strong> {r.area || "Unknown"},{" "}
-                    {r.city || "Unknown"}
+                    <strong>Location:</strong> {r.area || "Unknown"}, {r.city || "Unknown"}
                   </p>
                   <p>
                     <strong>Landmark:</strong> {r.landmark || "None"}
