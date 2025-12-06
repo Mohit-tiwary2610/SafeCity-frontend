@@ -13,6 +13,8 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import "./Dashboard.css";
 
 const API = import.meta.env.VITE_API_URL;
@@ -43,13 +45,16 @@ export default function Dashboard() {
   >([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
+  const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
+  const pageSize = 6;
 
   // Process incident data into UI state
   const processData = (incidentList: Report[]) => {
     setReports(incidentList);
 
-    // Unique types for dropdown
-    const mappedTypes = incidentList.map((r) => r.type);
+    // Unique types for dropdown (filter out undefined)
+    const mappedTypes = incidentList.map((r) => r.type).filter(Boolean);
     const uniqueTypes = Array.from(new Set(mappedTypes));
     setTypes(uniqueTypes);
 
@@ -100,13 +105,14 @@ export default function Dashboard() {
       },
     ];
     setSeverityData(severityArray);
+
+    setLastUpdated(new Date().toLocaleString());
   };
 
   useEffect(() => {
     const fetchOnce = async (): Promise<Report[] | null> => {
       try {
         const url = `${API}/incidents`;
-        console.log("Fetching:", url);
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -126,16 +132,15 @@ export default function Dashboard() {
 
       // First attempt
       const first = await fetchOnce();
-      if (first && first.length >= 0) {
+      if (first) {
         processData(first);
         setLoading(false);
         return;
       }
 
       // Retry once (Render cold start)
-      console.log("Retrying fetch...");
       const second = await fetchOnce();
-      if (second && second.length >= 0) {
+      if (second) {
         processData(second);
         setLoading(false);
         return;
@@ -152,6 +157,11 @@ export default function Dashboard() {
     filterType === "All"
       ? reports
       : reports.filter((r) => r.type === filterType);
+
+  const paginatedReports = filteredReports.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   const severityClass = (sev: number | string) => {
     if (typeof sev === "number") {
@@ -173,14 +183,83 @@ export default function Dashboard() {
     return `severity-card-${s}`;
   };
 
+  // Native CSV export without external libs
+  const toCSV = (rows: Report[]): string => {
+    const headers = [
+      "_id",
+      "type",
+      "description",
+      "severity",
+      "lat",
+      "lng",
+      "consent_public_map",
+      "city",
+      "area",
+      "landmark",
+    ];
+    const escape = (val: unknown) => {
+      if (val === null || val === undefined) return "";
+      const s = String(val);
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const lines = [
+      headers.join(","),
+      ...rows.map((r) =>
+        [
+          r._id,
+          r.type,
+          r.description,
+          r.severity,
+          r.lat,
+          r.lng,
+          r.consent_public_map,
+          r.city ?? "",
+          r.area ?? "",
+          r.landmark ?? "",
+        ]
+          .map(escape)
+          .join(",")
+      ),
+    ];
+    return lines.join("\n");
+  };
+
+  const exportCSV = () => {
+    const csv = toCSV(reports);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "incident_reports.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filteredReports.length / pageSize));
+
   return (
     <>
       <Navbar />
       <div className="dashboard-page">
         <h2>📊 Incident Dashboard</h2>
 
+        {lastUpdated && (
+          <p className="last-updated">Last updated: {lastUpdated}</p>
+        )}
+        <div className="actions-row">
+          <button onClick={exportCSV} className="export-btn">
+            Export to CSV
+          </button>
+        </div>
+
         {loading ? (
-          <p>Loading incident data...</p>
+          <div className="spinner-container">
+            <div className="spinner" />
+            <p>Loading incident data...</p>
+          </div>
         ) : error ? (
           <div className="error-state">
             <h4>{error}</h4>
@@ -206,7 +285,7 @@ export default function Dashboard() {
                               ? "orange"
                               : entry.type.toLowerCase() === "theft"
                               ? "red"
-                              : entry.type.toLowerCase() === "unsafe area"
+                              : entry.type.toLowerCase() === "unsafe_area"
                               ? "purple"
                               : entry.type.toLowerCase() === "emergency"
                               ? "blue"
@@ -252,13 +331,39 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Map Markers */}
+            <div className="chart-section">
+              <h3>Incident Map</h3>
+              <MapContainer
+                center={[22.8, 86.2]}
+                zoom={12}
+                style={{ height: "300px", width: "100%" }}
+              >
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {reports
+                  .filter((r) => r.consent_public_map && r.lat && r.lng)
+                  .map((r) => (
+                    <Marker key={r._id} position={[r.lat, r.lng]}>
+                      <Popup>
+                        <strong>{r.type}</strong>
+                        <br />
+                        {r.description}
+                      </Popup>
+                    </Marker>
+                  ))}
+              </MapContainer>
+            </div>
+
             {/* Filter dropdown */}
             <div className="filter-bar">
               <label htmlFor="type">Filter by type:</label>
               <select
                 id="type"
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => {
+                  setFilterType(e.target.value);
+                  setPage(1); // reset to first page when changing filters
+                }}
               >
                 <option value="All">All</option>
                 {types.map((t) => (
@@ -271,7 +376,7 @@ export default function Dashboard() {
 
             {/* Report cards */}
             <div className="report-grid">
-              {filteredReports.map((r) => (
+              {paginatedReports.map((r) => (
                 <div
                   key={r._id}
                   className={`report-card ${severityClass(r.severity)}`}
@@ -292,12 +397,33 @@ export default function Dashboard() {
                   </p>
                 </div>
               ))}
-              {filteredReports.length === 0 && (
+              {paginatedReports.length === 0 && (
                 <div className="empty-state">
                   <h4>No incidents found</h4>
                   <p>Try selecting “All” or a different type.</p>
                 </div>
               )}
+            </div>
+
+            {/* Pagination */}
+            <div className="pagination">
+              <button
+                className="page-btn"
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </button>
+              <span className="page-info">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                className="page-btn"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </button>
             </div>
           </>
         )}
