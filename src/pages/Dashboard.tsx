@@ -41,15 +41,18 @@ export default function Dashboard() {
   const [severityData, setSeverityData] = useState<
     { label: string; count: number; color: string }[]
   >([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
     const fetchReports = async () => {
       try {
         const res = await fetch(`${API}/incidents`);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
         const data = await res.json();
-
-        // backend returns { ok: true, incidents: [...] }
-        const incidentList: Report[] = data.incidents || [];
+        const incidentList: Report[] = Array.isArray(data.incidents)
+          ? data.incidents
+          : [];
         console.log("Fetched incidents:", incidentList);
         setReports(incidentList);
 
@@ -105,8 +108,11 @@ export default function Dashboard() {
           },
         ];
         setSeverityData(severityArray);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching incidents:", err);
+        setError("Failed to load incident data. Please try again later.");
+      } finally {
+        setLoading(false);
       }
     };
     fetchReports();
@@ -117,7 +123,6 @@ export default function Dashboard() {
       ? reports
       : reports.filter((r) => r.type === filterType);
 
-  // Normalize severity to CSS class suffix
   const severityClass = (sev: number | string) => {
     if (typeof sev === "number") {
       switch (sev) {
@@ -144,115 +149,128 @@ export default function Dashboard() {
       <div className="dashboard-page">
         <h2>📊 Incident Dashboard</h2>
 
-        {/* Bar Chart */}
-        <div className="chart-section">
-          <h3>Incident Distribution by Type</h3>
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="type" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count">
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={
-                        entry.type.toLowerCase() === "hazard"
-                          ? "orange"
-                          : entry.type.toLowerCase() === "theft"
-                          ? "red"
-                          : entry.type.toLowerCase() === "unsafe area"
-                          ? "purple"
-                          : entry.type.toLowerCase() === "emergency"
-                          ? "blue"
-                          : entry.type.toLowerCase() === "harassment"
-                          ? "pink"
-                          : "cyan"
-                      }
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <p>No incident data available</p>
-          )}
-        </div>
+        {loading ? (
+          <p>Loading incident data...</p>
+        ) : error ? (
+          <div className="error-state">
+            <h4>{error}</h4>
+          </div>
+        ) : (
+          <>
+            {/* Bar Chart */}
+            <div className="chart-section">
+              <h3>Incident Distribution by Type</h3>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="type" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count">
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={
+                            entry.type.toLowerCase() === "hazard"
+                              ? "orange"
+                              : entry.type.toLowerCase() === "theft"
+                              ? "red"
+                              : entry.type.toLowerCase() === "unsafe area"
+                              ? "purple"
+                              : entry.type.toLowerCase() === "emergency"
+                              ? "blue"
+                              : entry.type.toLowerCase() === "harassment"
+                              ? "pink"
+                              : "cyan"
+                          }
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p>No incident data available</p>
+              )}
+            </div>
 
-        {/* Pie Chart */}
-        <div className="chart-section">
-          <h3>Severity Distribution</h3>
-          {severityData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={severityData}
-                  dataKey="count"
-                  nameKey="label"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
-                  isAnimationActive={true}
+            {/* Pie Chart */}
+            <div className="chart-section">
+              <h3>Severity Distribution</h3>
+              {severityData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={severityData}
+                      dataKey="count"
+                      nameKey="label"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label
+                      isAnimationActive={true}
+                    >
+                      {severityData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p>No severity data available</p>
+              )}
+            </div>
+
+            {/* Filter dropdown */}
+            <div className="filter-bar">
+              <label htmlFor="type">Filter by type:</label>
+              <select
+                id="type"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+              >
+                <option value="All">All</option>
+                {types.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Report cards */}
+            <div className="report-grid">
+              {filteredReports.map((r) => (
+                <div
+                  key={r._id}
+                  className={`report-card ${severityClass(r.severity)}`}
                 >
-                  {severityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <p>No severity data available</p>
-          )}
-        </div>
-
-        {/* Filter dropdown */}
-        <div className="filter-bar">
-          <label htmlFor="type">Filter by type:</label>
-          <select
-            id="type"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <option value="All">All</option>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Report cards */}
-        <div className="report-grid">
-          {filteredReports.map((r) => (
-            <div key={r._id} className={`report-card ${severityClass(r.severity)}`}>
-              <div className="severity-badge">
-                Severity{" "}
-                {String(r.severity).charAt(0).toUpperCase() +
-                  String(r.severity).slice(1)}
-              </div>
-              <h3>{r.type}</h3>
-              <p>{r.description}</p>
-              <p>
-                <strong>Location:</strong> {r.area || "Unknown"},{" "}
-                {r.city || "Unknown"}
-              </p>
-              <p>
-                <strong>Landmark:</strong> {r.landmark || "None"}
-              </p>
+                  <div className="severity-badge">
+                    Severity{" "}
+                    {String(r.severity).charAt(0).toUpperCase() +
+                      String(r.severity).slice(1)}
+                  </div>
+                  <h3>{r.type}</h3>
+                  <p>{r.description}</p>
+                  <p>
+                    <strong>Location:</strong> {r.area || "Unknown"},{" "}
+                    {r.city || "Unknown"}
+                  </p>
+                  <p>
+                    <strong>Landmark:</strong> {r.landmark || "None"}
+                  </p>
+                </div>
+              ))}
+              {filteredReports.length === 0 && (
+                <div className="empty-state">
+                  <h4>No incidents found</h4>
+                  <p>Try selecting “All” or a different type.</p>
+                </div>
+              )}
             </div>
-          ))}
-          {filteredReports.length === 0 && (
-            <div className="empty-state">
-              <h4>No incidents found</h4>
-              <p>Try selecting “All” or a different type.</p>
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
       <Footer />
     </>
