@@ -9,7 +9,7 @@ const API = import.meta.env.VITE_API_URL;
 export default function ReportForm() {
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
-  const [severity, setSeverity] = useState(1);
+  const [severity, setSeverity] = useState("low"); // ✅ use string Enum
   const [f_lat, setLat] = useState("");
   const [f_lng, setLng] = useState("");
   const [city, setCity] = useState("");
@@ -36,48 +36,50 @@ export default function ReportForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    const body = {
-      type,
-      description,
-      severity, // make sure this matches backend expectation
-      lat: parseFloat(f_lat),   // ✅ use lat
-      lng: parseFloat(f_lng),   // ✅ use lng
-      city,
-      area,
-      landmark,
-    };
+    e.preventDefault();
+    try {
+      const body: any = {
+        type,
+        description,
+        severity: severity.toLowerCase(), // ✅ ensure lowercase string
+        lat: parseFloat(f_lat),
+        lng: parseFloat(f_lng),
+      };
 
-    const res = await fetch(`${API}/incidents`, {   // ✅ correct endpoint
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+      // ✅ only include optional fields if not empty
+      if (city.trim()) body.city = city;
+      if (area.trim()) body.area = area;
+      if (landmark.trim()) body.landmark = landmark;
 
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.message || "Failed to submit report");
+      const res = await fetch(`${API}/incidents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || errorData.message || "Failed to submit report");
+      }
+
+      const json = await res.json();
+      console.log("Submitted:", json);
+
+      setMessage({ text: "✅ Report submitted successfully!", type: "success" });
+
+      // reset form
+      setType("");
+      setDescription("");
+      setSeverity("low");
+      setLat("");
+      setLng("");
+      setCity("");
+      setArea("");
+      setLandmark("");
+    } catch (err: any) {
+      setMessage({ text: `❌ ${err.message}`, type: "error" });
     }
-
-    const json = await res.json();
-    console.log("Submitted:", json);
-
-    setMessage({ text: "✅ Report submitted successfully!", type: "success" });
-
-    // reset form
-    setType("");
-    setDescription("");
-    setSeverity(1);
-    setLat("");
-    setLng("");
-    setCity("");
-    setArea("");
-    setLandmark("");
-  } catch (err: any) {
-    setMessage({ text: `❌ ${err.message}`, type: "error" });
-  }
-};
+  };
 
   return (
     <>
@@ -92,13 +94,24 @@ export default function ReportForm() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <input type="text" placeholder="Type (e.g. hazard, theft)" value={type} onChange={(e) => setType(e.target.value)} required />
-          <textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required />
-          <select value={severity} onChange={(e) => setSeverity(Number(e.target.value))}>
-            <option value={1}>Low</option>
-            <option value={2}>Medium</option>
-            <option value={3}>High</option>
-            <option value={4}>Critical</option>
+          <input
+            type="text"
+            placeholder="Type (e.g. hazard, theft)"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            required
+          />
+          <textarea
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+          />
+          <select value={severity} onChange={(e) => setSeverity(e.target.value)}>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
           </select>
 
           <input
@@ -121,16 +134,18 @@ export default function ReportForm() {
             }}
             required
           />
-          <input type="text" placeholder="Nearby Landmark" value={landmark} onChange={(e) => setLandmark(e.target.value)} />
+          <input
+            type="text"
+            placeholder="Nearby Landmark"
+            value={landmark}
+            onChange={(e) => setLandmark(e.target.value)}
+          />
 
           <input type="text" placeholder="Latitude" value={f_lat} readOnly />
           <input type="text" placeholder="Longitude" value={f_lng} readOnly />
 
           <button type="submit">Submit Report</button>
         </form>
-
-        
-        
       </div>
       <Footer />
     </>
