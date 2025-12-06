@@ -50,6 +50,7 @@ export default function Dashboard() {
 
         // backend returns { ok: true, incidents: [...] }
         const incidentList: Report[] = data.incidents || [];
+        console.log("Fetched incidents:", incidentList);
         setReports(incidentList);
 
         // Unique types for dropdown
