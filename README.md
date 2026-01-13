@@ -29,7 +29,7 @@ SafeCity is a full-stack platform designed to empower communities through anonym
 ---
 
 ## 🌍 Live Demo
-👉 [Try SafeCity here](https://safecity-frontend-vercel.vercel.app)  
+👉 [Try SafeCity here] https://safecity-frontend-vercel.vercel.app  
 
 ---
 
