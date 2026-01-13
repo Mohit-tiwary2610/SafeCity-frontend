@@ -128,4 +128,3 @@ VITE_API_URL=http://localhost:8000
 - B.Tech CSE @ Sikkim Manipal Institute of Technology (2028)  
 - Full-stack & Data Science Engineer  
 - Open Source Contributor | Educator | Internship Applicant (Google, Microsoft, Goldman Sachs)  
-```
