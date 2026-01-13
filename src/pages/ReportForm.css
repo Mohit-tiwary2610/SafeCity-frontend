@@ -1,0 +1,77 @@
+.report-form {
+  padding: 40px;
+  background-color: #f3e5f5;
+  min-height: 80vh;
+}
+
+.report-form h3 {
+  color: #4a148c;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.report-form form {
+  display: grid;
+  gap: 16px;
+  max-width: 500px;
+  margin: auto;
+  background-color: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.report-form input,
+.report-form textarea,
+.report-form select {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+.report-form input[readonly] {
+  background-color: #f5f5f5;
+  color: #555;
+}
+
+.report-form button {
+  background-color: #6a1b9a;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.report-form button:hover {
+  background-color: #4a148c;
+}
+
+.form-message {
+  max-width: 500px;
+  margin: 0 auto 20px auto;
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.form-message.success {
+  background-color: #c8e6c9;
+  color: #2e7d32;
+}
+
+.form-message.error {
+  background-color: #ffcdd2;
+  color: #c62828;
+}
+.map-preview {
+  max-width: 500px;
+  margin: 20px auto;
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  overflow: hidden;
+}
